@@ -4821,7 +4821,16 @@ class HInvokeVirtual FINAL : public HInvoke {
       case Intrinsics::kThreadCurrentThread:
       case Intrinsics::kStringBufferAppend:
       case Intrinsics::kStringBufferToString:
-      case Intrinsics::kStringBuilderAppend:
+      case Intrinsics::kStringBuilderAppendObject:
+      case Intrinsics::kStringBuilderAppendString:
+      case Intrinsics::kStringBuilderAppendCharSequence:
+      case Intrinsics::kStringBuilderAppendCharArray:
+      case Intrinsics::kStringBuilderAppendBoolean:
+      case Intrinsics::kStringBuilderAppendChar:
+      case Intrinsics::kStringBuilderAppendInt:
+      case Intrinsics::kStringBuilderAppendLong:
+      case Intrinsics::kStringBuilderAppendFloat:
+      case Intrinsics::kStringBuilderAppendDouble:
       case Intrinsics::kStringBuilderToString:
         return false;
       default:
