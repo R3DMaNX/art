@@ -34,6 +34,7 @@
 #include "art_field-inl.h"
 #include "art_method-inl.h"
 #include "base/bit_utils_iterator.h"
+#include "base/indenter.h"
 #include "base/os.h"
 #include "base/safe_map.h"
 #include "base/stl_util.h"
@@ -52,6 +53,7 @@
 #include "dex/dex_file-inl.h"
 #include "dex/dex_instruction-inl.h"
 #include "dex/string_reference.h"
+#include "dex/type_lookup_table.h"
 #ifdef CDEX_CONVERTER
 #include "dexlayout.h"
 #endif
@@ -62,7 +64,6 @@
 #include "gc/space/space-inl.h"
 #include "image-inl.h"
 #include "imtable-inl.h"
-#include "indenter.h"
 #include "subtype_check.h"
 #include "index_bss_mapping.h"
 #include "interpreter/unstarted_runtime.h"
@@ -81,7 +82,6 @@
 #include "stack.h"
 #include "stack_map.h"
 #include "thread_list.h"
-#include "type_lookup_table.h"
 #include "vdex_file.h"
 #include "verifier/method_verifier.h"
 #include "verifier/verifier_deps.h"
