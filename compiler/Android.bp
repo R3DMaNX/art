@@ -247,6 +247,7 @@ art_cc_library {
         "libart",
         "libprofile",
         "libdexfile",
+        "libartbase",
     ],
 
     target: {
@@ -296,6 +297,7 @@ art_cc_library {
         "libartd",
         "libprofiled",
         "libdexfiled",
+        "libartbased",
     ],
 }
 
