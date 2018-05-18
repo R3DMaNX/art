@@ -477,7 +477,7 @@ static void FillRootTable(uint8_t* roots_data, Handle<mirror::ObjectArray<mirror
     if (kIsDebugBuild) {
       // Ensure the string is strongly interned. b/32995596
       if (object->IsString()) {
-        ObjPtr<mirror::String> str = reinterpret_cast<mirror::String*>(object.Ptr());
+        ObjPtr<mirror::String> str = ObjPtr<mirror::String>::DownCast(object);
         ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
         CHECK(class_linker->GetInternTable()->LookupStrong(Thread::Current(), str) != nullptr);
       }
@@ -510,7 +510,7 @@ static inline void ProcessWeakClass(GcRoot<mirror::Class>* root_ptr,
   // This does not need a read barrier because this is called by GC.
   mirror::Class* cls = root_ptr->Read<kWithoutReadBarrier>();
   if (cls != nullptr && cls != weak_sentinel) {
-    DCHECK((cls->IsClass<kDefaultVerifyFlags, kWithoutReadBarrier>()));
+    DCHECK((cls->IsClass<kDefaultVerifyFlags>()));
     // Look at the classloader of the class to know if it has been unloaded.
     // This does not need a read barrier because this is called by GC.
     mirror::Object* class_loader =

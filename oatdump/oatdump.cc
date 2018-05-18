@@ -41,10 +41,12 @@
 #include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "class_linker.h"
+#include "class_root.h"
 #include "compiled_method.h"
 #include "debug/debug_info.h"
 #include "debug/elf_debug_writer.h"
 #include "debug/method_debug_info.h"
+#include "dex/class_accessor-inl.h"
 #include "dex/code_item_accessors-inl.h"
 #include "dex/descriptors_names.h"
 #include "dex/dex_file-inl.h"
@@ -267,25 +269,18 @@ class OatSymbolizer FINAL {
   void WalkOatClass(const OatFile::OatClass& oat_class,
                     const DexFile& dex_file,
                     uint32_t class_def_index) {
-    const DexFile::ClassDef& class_def = dex_file.GetClassDef(class_def_index);
-    const uint8_t* class_data = dex_file.GetClassData(class_def);
-    if (class_data == nullptr) {  // empty class such as a marker interface?
-      return;
-    }
+    ClassAccessor accessor(dex_file, class_def_index);
     // Note: even if this is an interface or a native class, we still have to walk it, as there
     //       might be a static initializer.
-    ClassDataItemIterator it(dex_file, class_data);
     uint32_t class_method_idx = 0;
-    it.SkipAllFields();
-    for (; it.HasNextMethod(); it.Next()) {
+    for (const ClassAccessor::Method& method : accessor.GetMethods()) {
       WalkOatMethod(oat_class.GetOatMethod(class_method_idx++),
                     dex_file,
                     class_def_index,
-                    it.GetMemberIndex(),
-                    it.GetMethodCodeItem(),
-                    it.GetMethodAccessFlags());
+                    method.GetIndex(),
+                    method.GetCodeItem(),
+                    method.GetAccessFlags());
     }
-    DCHECK(!it.HasNext());
   }
 
   void WalkOatMethod(const OatFile::OatMethod& oat_method,
@@ -514,7 +509,6 @@ class OatDumper {
     }
 
     // Dumping the dex file overview is compact enough to do even if header only.
-    DexFileData cumulative;
     for (size_t i = 0; i < oat_dex_files_.size(); i++) {
       const OatFile::OatDexFile* oat_dex_file = oat_dex_files_[i];
       CHECK(oat_dex_file != nullptr);
@@ -525,18 +519,13 @@ class OatDumper {
            << error_msg;
         continue;
       }
-      DexFileData data(*dex_file);
-      os << "Dex file data for " << dex_file->GetLocation() << "\n";
-      data.Dump(os);
-      os << "\n";
+
       const DexLayoutSections* const layout_sections = oat_dex_file->GetDexLayoutSections();
       if (layout_sections != nullptr) {
         os << "Layout data\n";
         os << *layout_sections;
         os << "\n";
       }
-
-      cumulative.Add(data);
 
       // Dump .bss entries.
       DumpBssEntries(
@@ -561,9 +550,6 @@ class OatDumper {
           sizeof(GcRoot<mirror::Class>),
           [=](uint32_t index) { return dex_file->StringDataByIdx(dex::StringIndex(index)); });
     }
-    os << "Cumulative dex file data\n";
-    cumulative.Dump(os);
-    os << "\n";
 
     if (!options_.dump_header_only_) {
       VariableIndentationOutputStream vios(&os);
@@ -900,20 +886,12 @@ class OatDumper {
         continue;
       }
       offsets_.insert(reinterpret_cast<uintptr_t>(&dex_file->GetHeader()));
-      for (size_t class_def_index = 0;
-           class_def_index < dex_file->NumClassDefs();
-           class_def_index++) {
-        const DexFile::ClassDef& class_def = dex_file->GetClassDef(class_def_index);
-        const OatFile::OatClass oat_class = oat_dex_file->GetOatClass(class_def_index);
-        const uint8_t* class_data = dex_file->GetClassData(class_def);
-        if (class_data != nullptr) {
-          ClassDataItemIterator it(*dex_file, class_data);
-          it.SkipAllFields();
-          uint32_t class_method_index = 0;
-          while (it.HasNextMethod()) {
-            AddOffsets(oat_class.GetOatMethod(class_method_index++));
-            it.Next();
-          }
+      for (ClassAccessor accessor : dex_file->GetClasses()) {
+        const OatFile::OatClass oat_class = oat_dex_file->GetOatClass(accessor.GetClassDefIndex());
+        for (uint32_t class_method_index = 0;
+            class_method_index < accessor.NumMethods();
+            ++class_method_index) {
+          AddOffsets(oat_class.GetOatMethod(class_method_index));
         }
       }
     }
@@ -936,120 +914,6 @@ class OatDumper {
     offsets_.insert(code_offset);
     offsets_.insert(oat_method.GetVmapTableOffset());
   }
-
-  // Dex file data, may be for multiple different dex files.
-  class DexFileData {
-   public:
-    DexFileData() {}
-
-    explicit DexFileData(const DexFile& dex_file)
-        : num_string_ids_(dex_file.NumStringIds()),
-          num_method_ids_(dex_file.NumMethodIds()),
-          num_field_ids_(dex_file.NumFieldIds()),
-          num_type_ids_(dex_file.NumTypeIds()),
-          num_class_defs_(dex_file.NumClassDefs()) {
-      for (size_t class_def_index = 0; class_def_index < num_class_defs_; ++class_def_index) {
-        const DexFile::ClassDef& class_def = dex_file.GetClassDef(class_def_index);
-        WalkClass(dex_file, class_def);
-      }
-    }
-
-    void Add(const DexFileData& other) {
-      AddAll(unique_string_ids_from_code_, other.unique_string_ids_from_code_);
-      num_string_ids_from_code_ += other.num_string_ids_from_code_;
-      AddAll(dex_code_item_ptrs_, other.dex_code_item_ptrs_);
-      dex_code_bytes_ += other.dex_code_bytes_;
-      num_string_ids_ += other.num_string_ids_;
-      num_method_ids_ += other.num_method_ids_;
-      num_field_ids_ += other.num_field_ids_;
-      num_type_ids_ += other.num_type_ids_;
-      num_class_defs_ += other.num_class_defs_;
-    }
-
-    void Dump(std::ostream& os) {
-      os << "Num string ids: " << num_string_ids_ << "\n";
-      os << "Num method ids: " << num_method_ids_ << "\n";
-      os << "Num field ids: " << num_field_ids_ << "\n";
-      os << "Num type ids: " << num_type_ids_ << "\n";
-      os << "Num class defs: " << num_class_defs_ << "\n";
-      os << "Unique strings loaded from dex code: " << unique_string_ids_from_code_.size() << "\n";
-      os << "Total strings loaded from dex code: " << num_string_ids_from_code_ << "\n";
-      os << "Number of unique dex code items: " << dex_code_item_ptrs_.size() << "\n";
-      os << "Total number of dex code bytes: " << dex_code_bytes_ << "\n";
-    }
-
-   private:
-    // All of the elements from one container to another.
-    template <typename Dest, typename Src>
-    static void AddAll(Dest& dest, const Src& src) {
-      dest.insert(src.begin(), src.end());
-    }
-
-    void WalkClass(const DexFile& dex_file, const DexFile::ClassDef& class_def) {
-      const uint8_t* class_data = dex_file.GetClassData(class_def);
-      if (class_data == nullptr) {  // empty class such as a marker interface?
-        return;
-      }
-      ClassDataItemIterator it(dex_file, class_data);
-      it.SkipAllFields();
-      while (it.HasNextMethod()) {
-        WalkCodeItem(dex_file, it.GetMethodCodeItem());
-        it.Next();
-      }
-      DCHECK(!it.HasNext());
-    }
-
-    void WalkCodeItem(const DexFile& dex_file, const DexFile::CodeItem* code_item) {
-      if (code_item == nullptr) {
-        return;
-      }
-      CodeItemInstructionAccessor instructions(dex_file, code_item);
-
-      // If we inserted a new dex code item pointer, add to total code bytes.
-      const uint16_t* code_ptr = instructions.Insns();
-      if (dex_code_item_ptrs_.insert(code_ptr).second) {
-        dex_code_bytes_ += instructions.InsnsSizeInCodeUnits() * sizeof(code_ptr[0]);
-      }
-
-      for (const DexInstructionPcPair& inst : instructions) {
-        switch (inst->Opcode()) {
-          case Instruction::CONST_STRING: {
-            const dex::StringIndex string_index(inst->VRegB_21c());
-            unique_string_ids_from_code_.insert(StringReference(&dex_file, string_index));
-            ++num_string_ids_from_code_;
-            break;
-          }
-          case Instruction::CONST_STRING_JUMBO: {
-            const dex::StringIndex string_index(inst->VRegB_31c());
-            unique_string_ids_from_code_.insert(StringReference(&dex_file, string_index));
-            ++num_string_ids_from_code_;
-            break;
-          }
-          default:
-            break;
-        }
-      }
-    }
-
-    // Unique string ids loaded from dex code.
-    std::set<StringReference> unique_string_ids_from_code_;
-
-    // Total string ids loaded from dex code.
-    size_t num_string_ids_from_code_ = 0;
-
-    // Unique code pointers.
-    std::set<const void*> dex_code_item_ptrs_;
-
-    // Total "unique" dex code bytes.
-    size_t dex_code_bytes_ = 0;
-
-    // Other dex ids.
-    size_t num_string_ids_ = 0;
-    size_t num_method_ids_ = 0;
-    size_t num_field_ids_ = 0;
-    size_t num_type_ids_ = 0;
-    size_t num_class_defs_ = 0;
-  };
 
   bool DumpOatDexFile(std::ostream& os, const OatFile::OatDexFile& oat_dex_file) {
     bool success = true;
@@ -1094,28 +958,28 @@ class OatDumper {
 
     VariableIndentationOutputStream vios(&os);
     ScopedIndentation indent1(&vios);
-    for (size_t class_def_index = 0;
-         class_def_index < dex_file->NumClassDefs();
-         class_def_index++) {
-      const DexFile::ClassDef& class_def = dex_file->GetClassDef(class_def_index);
-      const char* descriptor = dex_file->GetClassDescriptor(class_def);
-
+    for (ClassAccessor accessor : dex_file->GetClasses()) {
       // TODO: Support regex
+      const char* descriptor = accessor.GetDescriptor();
       if (DescriptorToDot(descriptor).find(options_.class_filter_) == std::string::npos) {
         continue;
       }
 
+      const uint16_t class_def_index = accessor.GetClassDefIndex();
       uint32_t oat_class_offset = oat_dex_file.GetOatClassOffset(class_def_index);
       const OatFile::OatClass oat_class = oat_dex_file.GetOatClass(class_def_index);
       os << StringPrintf("%zd: %s (offset=0x%08x) (type_idx=%d)",
-                         class_def_index, descriptor, oat_class_offset, class_def.class_idx_.index_)
+                         static_cast<ssize_t>(class_def_index),
+                         descriptor,
+                         oat_class_offset,
+                         accessor.GetClassIdx().index_)
          << " (" << oat_class.GetStatus() << ")"
          << " (" << oat_class.GetType() << ")\n";
       // TODO: include bitmap here if type is kOatClassSomeCompiled?
       if (options_.list_classes_) {
         continue;
       }
-      if (!DumpOatClass(&vios, oat_class, *dex_file, class_def, &stop_analysis)) {
+      if (!DumpOatClass(&vios, oat_class, *dex_file, accessor, &stop_analysis)) {
         success = false;
       }
       if (stop_analysis) {
@@ -1252,22 +1116,23 @@ class OatDumper {
   }
 
   bool DumpOatClass(VariableIndentationOutputStream* vios,
-                    const OatFile::OatClass& oat_class, const DexFile& dex_file,
-                    const DexFile::ClassDef& class_def, bool* stop_analysis) {
+                    const OatFile::OatClass& oat_class,
+                    const DexFile& dex_file,
+                    const ClassAccessor& class_accessor,
+                    bool* stop_analysis) {
     bool success = true;
     bool addr_found = false;
-    const uint8_t* class_data = dex_file.GetClassData(class_def);
-    if (class_data == nullptr) {  // empty class such as a marker interface?
-      vios->Stream() << std::flush;
-      return success;
-    }
-    ClassDataItemIterator it(dex_file, class_data);
-    it.SkipAllFields();
     uint32_t class_method_index = 0;
-    while (it.HasNextMethod()) {
-      if (!DumpOatMethod(vios, class_def, class_method_index, oat_class, dex_file,
-                         it.GetMemberIndex(), it.GetMethodCodeItem(),
-                         it.GetRawMemberAccessFlags(), &addr_found)) {
+    for (const ClassAccessor::Method& method : class_accessor.GetMethods()) {
+      if (!DumpOatMethod(vios,
+                         dex_file.GetClassDef(class_accessor.GetClassDefIndex()),
+                         class_method_index,
+                         oat_class,
+                         dex_file,
+                         method.GetIndex(),
+                         method.GetCodeItem(),
+                         method.GetRawAccessFlags(),
+                         &addr_found)) {
         success = false;
       }
       if (addr_found) {
@@ -1275,9 +1140,7 @@ class OatDumper {
         return success;
       }
       class_method_index++;
-      it.Next();
     }
-    DCHECK(!it.HasNext());
     vios->Stream() << std::flush;
     return success;
   }
@@ -3327,7 +3190,7 @@ class IMTDumper {
       PrepareClass(runtime, klass, prepared);
     }
 
-    mirror::Class* object_class = mirror::Class::GetJavaLangClass()->GetSuperClass();
+    ObjPtr<mirror::Class> object_class = GetClassRoot<mirror::Object>();
     DCHECK(object_class->IsObjectClass());
 
     bool result = klass->GetImt(pointer_size) == object_class->GetImt(pointer_size);
@@ -3361,8 +3224,8 @@ class IMTDumper {
                                        Handle<mirror::ClassLoader> h_loader,
                                        const std::string& class_name,
                                        const PointerSize pointer_size,
-                                       mirror::Class** klass_out,
-                                       std::unordered_set<std::string>* prepared)
+                                       /*out*/ ObjPtr<mirror::Class>* klass_out,
+                                       /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     if (class_name.empty()) {
       return nullptr;
@@ -3375,7 +3238,8 @@ class IMTDumper {
       descriptor = DotToDescriptor(class_name.c_str());
     }
 
-    mirror::Class* klass = runtime->GetClassLinker()->FindClass(self, descriptor.c_str(), h_loader);
+    ObjPtr<mirror::Class> klass =
+        runtime->GetClassLinker()->FindClass(self, descriptor.c_str(), h_loader);
 
     if (klass == nullptr) {
       self->ClearException();
@@ -3395,7 +3259,7 @@ class IMTDumper {
   static ImTable* PrepareAndGetImTable(Runtime* runtime,
                                        Handle<mirror::Class> h_klass,
                                        const PointerSize pointer_size,
-                                       std::unordered_set<std::string>* prepared)
+                                       /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     PrepareClass(runtime, h_klass, prepared);
     return h_klass->GetImt(pointer_size);
@@ -3407,7 +3271,7 @@ class IMTDumper {
                               std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     const PointerSize pointer_size = runtime->GetClassLinker()->GetImagePointerSize();
-    mirror::Class* klass;
+    ObjPtr<mirror::Class> klass;
     ImTable* imt = PrepareAndGetImTable(runtime,
                                         Thread::Current(),
                                         h_loader,
@@ -3463,10 +3327,10 @@ class IMTDumper {
                                const std::string& class_name,
                                const std::string& method,
                                Handle<mirror::ClassLoader> h_loader,
-                               std::unordered_set<std::string>* prepared)
+                               /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     const PointerSize pointer_size = runtime->GetClassLinker()->GetImagePointerSize();
-    mirror::Class* klass;
+    ObjPtr<mirror::Class> klass;
     ImTable* imt = PrepareAndGetImTable(runtime,
                                         Thread::Current(),
                                         h_loader,
@@ -3569,7 +3433,7 @@ class IMTDumper {
   // and note in the given set that the work was done.
   static void PrepareClass(Runtime* runtime,
                            Handle<mirror::Class> h_klass,
-                           std::unordered_set<std::string>* done)
+                           /*inout*/ std::unordered_set<std::string>* done)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     if (!h_klass->ShouldHaveImt()) {
       return;
