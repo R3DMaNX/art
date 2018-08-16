@@ -67,9 +67,38 @@ void Class::VisitNativeRoots(Visitor& visitor, PointerSize pointer_size) {
       CHECK_EQ(field.GetDeclaringClass<kReadBarrierOption>(), this) << GetStatus();
     }
   }
-  for (ArtMethod& method : GetMethods(pointer_size)) {
-    method.VisitRoots<kReadBarrierOption>(visitor, pointer_size);
-  }
+
+  bool need_check = true;
+  do {
+    ArraySlice<ArtMethod> methods = GetMethods(pointer_size);
+    uint32_t num_method = NumMethods();
+    if (num_method == 0) {
+      need_check = false;
+      break;
+    }
+    /*
+     * 1. HeapTaskDeamon may wait on this class before enter for-loop.
+     *    The waiting period may last serveral milliseconds.
+     * 2. During this period, some other thread may modify this class, such as
+     *    setting methods_ to 0 by SetMethodsPtrUnchecked(nullptr, 0, 0) when
+     *    they calling ClassLinker::LinkClass if this is a temp class.
+     * 3. When HeapTaskDeamon wakeup and enter for-loop, it will meet crash due
+     *    to the invalid methods_:
+     *    signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x8
+     *    The fault addr is equal to PionterSize, see function OffsetOfElement.
+     * 4. Add CHECK: if num of methods changed, then retry from the beginning.
+     */
+    for (ArtMethod& method : methods) {
+      if (need_check) {
+        if (num_method != NumMethods()) {
+          break;
+        }
+        need_check = false;
+      }
+      method.VisitRoots<kReadBarrierOption>(visitor, pointer_size);
+    }
+  } while (need_check);
+
   ObjPtr<ClassExt> ext(GetExtData<kDefaultVerifyFlags, kReadBarrierOption>());
   if (!ext.IsNull()) {
     ext->VisitNativeRoots<kReadBarrierOption, Visitor>(visitor, pointer_size);
