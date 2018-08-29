@@ -1523,12 +1523,7 @@ void CodeGenerator::ValidateInvokeRuntime(QuickEntrypointEnum entrypoint,
           << " instruction->GetSideEffects().ToString()="
           << instruction->GetSideEffects().ToString();
     } else {
-      // 'CanTriggerGC' side effect is used to restrict optimization of instructions which depend
-      // on GC (e.g. IntermediateAddress) - to ensure they are not alive across GC points. However
-      // if execution never returns to the compiled code from a GC point this restriction is
-      // unnecessary - in particular for fatal slow paths which might trigger GC.
-      DCHECK((slow_path->IsFatal() && !instruction->GetLocations()->WillCall()) ||
-             instruction->GetSideEffects().Includes(SideEffects::CanTriggerGC()) ||
+      DCHECK(instruction->GetSideEffects().Includes(SideEffects::CanTriggerGC()) ||
              // When (non-Baker) read barriers are enabled, some instructions
              // use a slow path to emit a read barrier, which does not trigger
              // GC.

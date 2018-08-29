@@ -292,7 +292,8 @@ public class Main {
   /// CHECK:     <<ArraySet1:v\d+>>    ArraySet [<<Addr1>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
   /// CHECK:     <<ArrayGet2:i\d+>>    ArrayGet [<<NullB>>,{{i\d+}}]            loop:<<Loop>>      outer_loop:none
   /// CHECK:                           Add                                      loop:<<Loop>>      outer_loop:none
-  /// CHECK:     <<ArraySet2:v\d+>>    ArraySet [<<Addr1>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
+  /// CHECK:     <<Addr2:i\d+>>        IntermediateAddress [<<NullA>>,{{i\d+}}] loop:<<Loop>>      outer_loop:none
+  /// CHECK:     <<ArraySet2:v\d+>>    ArraySet [<<Addr2>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
   /// CHECK:                           Add                                      loop:<<Loop>>      outer_loop:none
 
   /// CHECK-START-ARM64: void Main.CrossOverLoop(int[], int[]) scheduler (after)
@@ -302,12 +303,13 @@ public class Main {
   /// CHECK:     <<NullA:l\d+>>        NullCheck [<<ParamA>>]                   loop:none
   /// CHECK:                           Phi                                      loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK:     <<ArrayGet1:i\d+>>    ArrayGet [<<NullB>>,{{i\d+}}]            loop:<<Loop>>      outer_loop:none
+  /// CHECK:                           Add                                      loop:<<Loop>>      outer_loop:none
   /// CHECK:     <<Addr1:i\d+>>        IntermediateAddress [<<NullA>>,{{i\d+}}] loop:<<Loop>>      outer_loop:none
-  /// CHECK:                           Add [<<ArrayGet1>>,{{i\d+}}]             loop:<<Loop>>      outer_loop:none
   /// CHECK:     <<ArraySet1:v\d+>>    ArraySet [<<Addr1>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
   /// CHECK:     <<ArrayGet2:i\d+>>    ArrayGet [<<NullB>>,{{i\d+}}]            loop:<<Loop>>      outer_loop:none
   /// CHECK:                           Add                                      loop:<<Loop>>      outer_loop:none
-  /// CHECK:     <<ArraySet2:v\d+>>    ArraySet [<<Addr1>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
+  /// CHECK:     <<Addr2:i\d+>>        IntermediateAddress [<<NullA>>,{{i\d+}}] loop:<<Loop>>      outer_loop:none
+  /// CHECK:     <<ArraySet2:v\d+>>    ArraySet [<<Addr2>>,{{i\d+}},{{i\d+}}]   loop:<<Loop>>      outer_loop:none
   /// CHECK:                           Add                                      loop:<<Loop>>      outer_loop:none
   private static void CrossOverLoop(int a[], int b[]) {
     b[20] = 99;
