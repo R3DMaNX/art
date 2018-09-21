@@ -624,6 +624,7 @@ void OptimizingCompiler::RunOptimizations(HGraph* graph,
     // Initial optimizations.
     OptDef(OptimizationPass::kConstantFolding),
     OptDef(OptimizationPass::kInstructionSimplifier),
+    OptDef(OptimizationPass::kTailRecursionElimination),
     OptDef(OptimizationPass::kDeadCodeElimination,
            "dead_code_elimination$initial"),
     // Inlining.
