@@ -84,6 +84,7 @@ enum class OptimizationPass {
   kScheduling,
   kSelectGenerator,
   kSideEffectsAnalysis,
+  kTailRecursionElimination,
 #ifdef ART_ENABLE_CODEGEN_arm
   kInstructionSimplifierArm,
 #endif
