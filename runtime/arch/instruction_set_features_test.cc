@@ -168,12 +168,16 @@ TEST(InstructionSetFeaturesTest, FeaturesFromRuntimeDetection) {
   }
 }
 
-TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringDefault) {
+// The instruction set feature string must not contain 'default' together with
+// other feature names.
+//
+// Test that InstructionSetFeatures::AddFeaturesFromString returns nullptr and
+// an error is reported when the value 'default' is specified together
+// with other feature names in an instruction set feature string.
+TEST(InstructionSetFeaturesTest, AddFeaturesFromStringWithDefaultAndOtherNames) {
   std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
       InstructionSetFeatures::FromCppDefines());
-  std::string error_msg;
-
-  std::array<const char*, 10> incorrect_strings = {
+  std::vector<std::string> invalid_feature_strings = {
     "a,default",
     "default,a",
     "a,default,b",
@@ -186,20 +190,24 @@ TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringDefault) {
     "default,runtime"
   };
 
-  for (auto &incorrect_str : incorrect_strings) {
-    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(incorrect_str, &error_msg),
-              nullptr) << " Feature string: '" << incorrect_str << "'";
-    EXPECT_EQ(error_msg, "Don't expect any instruction set features used with 'default'");
-    error_msg.clear();
+  for (const std::string& invalid_feature_string : invalid_feature_strings) {
+    std::string error_msg;
+    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(invalid_feature_string, &error_msg),
+              nullptr) << " Invalid feature string: '" << invalid_feature_string << "'";
+    EXPECT_EQ(error_msg, "Specific instruction set feature(s) cannot be used when 'default' is used.");
   }
 }
 
-TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringRuntime) {
+// The instruction set feature string must not contain 'runtime' together with
+// other feature names.
+//
+// Test that InstructionSetFeatures::AddFeaturesFromString returns nullptr and
+// an error is reported when the value 'runtime' is specified together
+// with other feature names in an instruction set feature string.
+TEST(InstructionSetFeaturesTest, AddFeaturesFromStringWithRuntimeAndOtherNames) {
   std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
       InstructionSetFeatures::FromCppDefines());
-  std::string error_msg;
-
-  std::array<const char*, 10> incorrect_strings = {
+  std::vector<std::string> invalid_feature_strings = {
     "a,runtime",
     "runtime,a",
     "a,runtime,b",
@@ -212,25 +220,22 @@ TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringRuntime) {
     "runtime,default"
   };
 
-  for (auto &incorrect_str : incorrect_strings) {
-    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(incorrect_str, &error_msg),
-              nullptr) << " Feature string: '" << incorrect_str << "'";
-    EXPECT_EQ(error_msg, "Don't expect any instruction set features used with 'runtime'");
-    error_msg.clear();
+  for (const std::string& invalid_feature_string : invalid_feature_strings) {
+    std::string error_msg;
+    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(invalid_feature_string, &error_msg),
+              nullptr) << " Invalid feature string: '" << invalid_feature_string << "'";
+    EXPECT_EQ(error_msg, "Specific instruction set feature(s) cannot be used when 'runtime' is used.");
   }
 }
 
-TEST(InstructionSetFeaturesTest, AddFeaturesFromValidString) {
+// Spaces and multiple commas are ignores in a instruction set feature string.
+//
+// Test that a use of spaces and multiple commas with 'default' and 'runtime'
+// does not cause errors.
+TEST(InstructionSetFeaturesTest, AddFeaturesFromValidStringContainingDefaultOrRuntime) {
   std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
       InstructionSetFeatures::FromCppDefines());
-  std::string error_msg;
-
-  std::array<const char*, 20> strings = {
-    " ",
-    "       ",
-    ",",
-    ",,",
-    " , , ,,,,,,",
+  std::vector<std::string> valid_feature_strings = {
     "default",
     ",,,default",
     "default,,,,",
@@ -247,10 +252,38 @@ TEST(InstructionSetFeaturesTest, AddFeaturesFromValidString) {
     " , , ,runtime, , , ",
     " runtime , , , "
   };
-  for (auto &str : strings) {
-    EXPECT_NE(cpp_defined_features->AddFeaturesFromString(str, &error_msg),
-        nullptr) << " Feature string: '" << str << "'";
-    EXPECT_TRUE(error_msg.empty()) << " Error message got: " << error_msg;
+  for (const std::string& valid_feature_string : valid_feature_strings) {
+    std::string error_msg;
+    EXPECT_NE(cpp_defined_features->AddFeaturesFromString(valid_feature_string, &error_msg),
+              nullptr) << " Valid feature string: '" << valid_feature_string << "'";
+    EXPECT_TRUE(error_msg.empty()) << error_msg;
+  }
+}
+
+// Spaces and multiple commas are ignores in a instruction set feature string.
+//
+// Test that a use of spaces and multiple commas without any feature names
+// causes errors.
+TEST(InstructionSetFeaturesTest, AddFeaturesFromInvalidStringWithoutFeatureNames) {
+  std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
+      InstructionSetFeatures::FromCppDefines());
+  std::vector<std::string> invalid_feature_strings = {
+    " ",
+    "       ",
+    ",",
+    ",,",
+    " , , ,,,,,,",
+    "\t",
+    "  \t     ",
+    ",",
+    ",,",
+    " , , ,,,,,,"
+  };
+  for (const std::string& invalid_feature_string : invalid_feature_strings) {
+    std::string error_msg;
+    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(invalid_feature_string, &error_msg),
+              nullptr) << " Invalid feature string: '" << invalid_feature_string << "'";
+    EXPECT_EQ(error_msg, "No instruction set features specified");
   }
 }
 
@@ -259,9 +292,10 @@ TEST(InstructionSetFeaturesTest, AddFeaturesFromStringRuntime) {
       InstructionSetFeatures::FromCppDefines());
   std::string error_msg;
 
-  auto features = cpp_defined_features->AddFeaturesFromString("runtime", &error_msg);
+  const std::unique_ptr<const InstructionSetFeatures> features =
+      cpp_defined_features->AddFeaturesFromString("runtime", &error_msg);
   EXPECT_NE(features, nullptr);
-  EXPECT_TRUE(error_msg.empty());
+  EXPECT_TRUE(error_msg.empty()) << error_msg;
   if (!InstructionSetFeatures::IsRuntimeDetectionSupported()) {
     EXPECT_TRUE(features->Equals(cpp_defined_features.get()));
   }

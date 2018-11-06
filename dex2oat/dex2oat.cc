@@ -286,10 +286,10 @@ NO_RETURN static void Usage(const char* fmt, ...) {
   UsageError("      Default: arm");
   UsageError("");
   UsageError("  --instruction-set-features=...,: Specify instruction set features");
-  UsageError("      On a target the value 'runtime' can be used to detect features at runtime.");
-  UsageError("      If a target does not support runtime detection the value 'runtime'");
+  UsageError("      On target the value 'runtime' can be used to detect features at run time.");
+  UsageError("      If target does not support run-time detection the value 'runtime'");
   UsageError("      has the same effect as the value 'default'.");
-  UsageError("      Note: the value 'runtime' has no effect if it is used on a host.");
+  UsageError("      Note: the value 'runtime' has no effect if it is used on host.");
   UsageError("      Example: --instruction-set-features=div");
   UsageError("      Default: default");
   UsageError("");

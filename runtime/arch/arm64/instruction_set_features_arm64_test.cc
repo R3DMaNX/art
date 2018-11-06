@@ -214,8 +214,8 @@ TEST(Arm64InstructionSetFeaturesTest, AddFeaturesFromStringRuntime) {
       Arm64InstructionSetFeatures::FromVariant("cortex-a53", &error_msg));
   features = a53_features->AddFeaturesFromString("runtime", &error_msg);
   EXPECT_NE(features, nullptr);
-  EXPECT_TRUE(error_msg.empty());
-  auto arm64_features = features->AsArm64InstructionSetFeatures();
+  EXPECT_TRUE(error_msg.empty()) << error_msg;
+  const Arm64InstructionSetFeatures *arm64_features = features->AsArm64InstructionSetFeatures();
   EXPECT_TRUE(arm64_features->NeedFixCortexA53_835769());
   EXPECT_TRUE(arm64_features->NeedFixCortexA53_843419());
 }

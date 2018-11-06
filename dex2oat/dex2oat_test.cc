@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -28,6 +28,7 @@
 
 #include "common_runtime_test.h"
 
+#include "arch/instruction_set_features.h"
 #include "base/macros.h"
 #include "base/mutex-inl.h"
 #include "base/utils.h"
@@ -44,7 +45,6 @@
 #include "profile/profile_compilation_info.h"
 #include "vdex_file.h"
 #include "ziparchive/zip_writer.h"
-#include "arch/instruction_set_features.h"
 
 namespace art {
 
@@ -2198,7 +2198,10 @@ class Dex2oatISAFeaturesRuntimeDetectionTest : public Dex2oatTest {
 
     Copy(GetTestDexFileName(), dex_location);
 
-    ASSERT_TRUE(GenerateOdexForTest(dex_location, odex_location, CompilerFilter::kSpeed, extra_args));
+    ASSERT_TRUE(GenerateOdexForTest(dex_location,
+                                    odex_location,
+                                    CompilerFilter::kSpeed,
+                                    extra_args));
   }
 
   std::string GetTestDexFileName() {
@@ -2209,8 +2212,8 @@ class Dex2oatISAFeaturesRuntimeDetectionTest : public Dex2oatTest {
 TEST_F(Dex2oatISAFeaturesRuntimeDetectionTest, TestCurrentRuntimeFeaturesAsDex2OatArguments) {
   std::vector<std::string> argv;
   Runtime::Current()->AddCurrentRuntimeFeaturesAsDex2OatArguments(&argv);
-  auto option_pos = std::find(std::begin(argv), std::end(argv),
-                              "--instruction-set-features=runtime");
+  auto option_pos =
+      std::find(std::begin(argv), std::end(argv), "--instruction-set-features=runtime");
   if (InstructionSetFeatures::IsRuntimeDetectionSupported()) {
     EXPECT_TRUE(kIsTargetBuild);
     EXPECT_NE(option_pos, std::end(argv));

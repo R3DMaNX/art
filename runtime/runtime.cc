@@ -2388,7 +2388,8 @@ void Runtime::AddCurrentRuntimeFeaturesAsDex2OatArguments(std::vector<std::strin
   if (InstructionSetFeatures::IsRuntimeDetectionSupported()) {
     argv->push_back("--instruction-set-features=runtime");
   } else {
-    std::unique_ptr<const InstructionSetFeatures> features(InstructionSetFeatures::FromCppDefines());
+    std::unique_ptr<const InstructionSetFeatures> features(
+        InstructionSetFeatures::FromCppDefines());
     std::string feature_string("--instruction-set-features=");
     feature_string += features->GetFeatureString();
     argv->push_back(feature_string);

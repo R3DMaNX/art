@@ -193,11 +193,7 @@ std::unique_ptr<const InstructionSetFeatures> InstructionSetFeatures::FromAssemb
 }
 
 std::unique_ptr<const InstructionSetFeatures> InstructionSetFeatures::AddFeaturesFromString(
-    const std::string& feature_list, std::string* error_msg) const {
-  if (feature_list.empty()) {
-    *error_msg = "No instruction set features specified";
-    return std::unique_ptr<const InstructionSetFeatures>();
-  }
+    const std::string& feature_list, /* out */ std::string* error_msg) const {
   std::vector<std::string> features;
   Split(feature_list, ',', &features);
   std::transform(std::begin(features), std::end(features), std::begin(features),
@@ -206,13 +202,17 @@ std::unique_ptr<const InstructionSetFeatures> InstructionSetFeatures::AddFeature
                                           std::begin(features),
                                           [](const std::string& s) { return !s.empty(); });
   features.erase(empty_strings_begin, std::end(features));
+  if (features.empty()) {
+    *error_msg = "No instruction set features specified";
+    return nullptr;
+  }
 
   bool use_default = false;
   bool use_runtime_detection = false;
-  for (auto &feature : features) {
+  for (const std::string& feature : features) {
     if (feature == "default") {
       if (features.size() > 1) {
-        *error_msg = "Don't expect any instruction set features used with 'default'";
+        *error_msg = "Specific instruction set feature(s) cannot be used when 'default' is used.";
         return nullptr;
       }
       use_default = true;
@@ -220,7 +220,7 @@ std::unique_ptr<const InstructionSetFeatures> InstructionSetFeatures::AddFeature
       break;
     } else if (feature == "runtime") {
       if (features.size() > 1) {
-        *error_msg = "Don't expect any instruction set features used with 'runtime'";
+        *error_msg = "Specific instruction set feature(s) cannot be used when 'runtime' is used.";
         return nullptr;
       }
       use_runtime_detection = true;
@@ -228,10 +228,10 @@ std::unique_ptr<const InstructionSetFeatures> InstructionSetFeatures::AddFeature
       break;
     }
   }
-  // Expectation: "default" and "runtime" are standalone, no other flags. But
-  // an empty features vector after processing can also come along if the
-  // handled flags are the only ones in the list. So
-  // logically, we check "default or runtime -> features.empty."
+  // Expectation: "default" and "runtime" are standalone, no other feature names.
+  // But an empty features vector after processing can also come along if the
+  // handled feature names  are the only ones in the list. So
+  // logically, we check "default or runtime => features.empty."
   DCHECK((!use_default && !use_runtime_detection) || features.empty());
 
   std::unique_ptr<const InstructionSetFeatures> runtime_detected_features;
