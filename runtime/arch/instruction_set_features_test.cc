@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <array>
+
 #include "instruction_set_features.h"
 
 #include <gtest/gtest.h>
@@ -158,6 +160,111 @@ TEST(InstructionSetFeaturesTest, FeaturesFromAssembly) {
   EXPECT_TRUE(assembly_features->HasAtLeast(instruction_set_features.get()))
       << "Assembly features: " << *assembly_features.get()
       << "\nFeatures from build: " << *instruction_set_features.get();
+}
+
+TEST(InstructionSetFeaturesTest, FeaturesFromRuntimeDetection) {
+  if (!InstructionSetFeatures::IsRuntimeDetectionSupported()) {
+    EXPECT_EQ(InstructionSetFeatures::FromRuntimeDetection(), nullptr);
+  }
+}
+
+TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringDefault) {
+  std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
+      InstructionSetFeatures::FromCppDefines());
+  std::string error_msg;
+
+  std::array<const char*, 10> incorrect_strings = {
+    "a,default",
+    "default,a",
+    "a,default,b",
+    "a,b,default",
+    "default,a,b,c",
+    "a,b,default,c,d",
+    "a, default ",
+    " default , a",
+    "a, default , b",
+    "default,runtime"
+  };
+
+  for (auto &incorrect_str : incorrect_strings) {
+    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(incorrect_str, &error_msg),
+              nullptr) << " Feature string: '" << incorrect_str << "'";
+    EXPECT_EQ(error_msg, "Don't expect any instruction set features used with 'default'");
+    error_msg.clear();
+  }
+}
+
+TEST(InstructionSetFeaturesTest, AddFeaturesFromIncorrectStringRuntime) {
+  std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
+      InstructionSetFeatures::FromCppDefines());
+  std::string error_msg;
+
+  std::array<const char*, 10> incorrect_strings = {
+    "a,runtime",
+    "runtime,a",
+    "a,runtime,b",
+    "a,b,runtime",
+    "runtime,a,b,c",
+    "a,b,runtime,c,d",
+    "a, runtime ",
+    " runtime , a",
+    "a, runtime , b",
+    "runtime,default"
+  };
+
+  for (auto &incorrect_str : incorrect_strings) {
+    EXPECT_EQ(cpp_defined_features->AddFeaturesFromString(incorrect_str, &error_msg),
+              nullptr) << " Feature string: '" << incorrect_str << "'";
+    EXPECT_EQ(error_msg, "Don't expect any instruction set features used with 'runtime'");
+    error_msg.clear();
+  }
+}
+
+TEST(InstructionSetFeaturesTest, AddFeaturesFromValidString) {
+  std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
+      InstructionSetFeatures::FromCppDefines());
+  std::string error_msg;
+
+  std::array<const char*, 20> strings = {
+    " ",
+    "       ",
+    ",",
+    ",,",
+    " , , ,,,,,,",
+    "default",
+    ",,,default",
+    "default,,,,",
+    ",,,default,,,,",
+    "default, , , ",
+    " , , ,default",
+    " , , ,default, , , ",
+    " default , , , ",
+    ",,,runtime",
+    "runtime,,,,",
+    ",,,runtime,,,,",
+    "runtime, , , ",
+    " , , ,runtime",
+    " , , ,runtime, , , ",
+    " runtime , , , "
+  };
+  for (auto &str : strings) {
+    EXPECT_NE(cpp_defined_features->AddFeaturesFromString(str, &error_msg),
+        nullptr) << " Feature string: '" << str << "'";
+    EXPECT_TRUE(error_msg.empty()) << " Error message got: " << error_msg;
+  }
+}
+
+TEST(InstructionSetFeaturesTest, AddFeaturesFromStringRuntime) {
+  std::unique_ptr<const InstructionSetFeatures> cpp_defined_features(
+      InstructionSetFeatures::FromCppDefines());
+  std::string error_msg;
+
+  auto features = cpp_defined_features->AddFeaturesFromString("runtime", &error_msg);
+  EXPECT_NE(features, nullptr);
+  EXPECT_TRUE(error_msg.empty());
+  if (!InstructionSetFeatures::IsRuntimeDetectionSupported()) {
+    EXPECT_TRUE(features->Equals(cpp_defined_features.get()));
+  }
 }
 
 }  // namespace art

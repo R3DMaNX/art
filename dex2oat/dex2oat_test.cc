@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -43,6 +44,7 @@
 #include "profile/profile_compilation_info.h"
 #include "vdex_file.h"
 #include "ziparchive/zip_writer.h"
+#include "arch/instruction_set_features.h"
 
 namespace art {
 
@@ -2180,6 +2182,37 @@ TEST_F(Dex2oatClassLoaderContextTest, StoredClassLoaderContext) {
                       [&](const OatFile& oat_file) {
     EXPECT_EQ(oat_file.GetClassLoaderContext(), expected_stored_context) << output_;
   });
+}
+
+class Dex2oatISAFeaturesRuntimeDetectionTest : public Dex2oatTest {
+ protected:
+  void RunTest(const std::vector<std::string>& extra_args = {}) {
+    std::string dex_location = GetScratchDir() + "/Dex2OatSwapTest.jar";
+    std::string odex_location = GetOdexDir() + "/Dex2OatSwapTest.odex";
+
+    Copy(GetTestDexFileName(), dex_location);
+
+    ASSERT_TRUE(GenerateOdexForTest(dex_location, odex_location, CompilerFilter::kSpeed, extra_args));
+  }
+
+  std::string GetTestDexFileName() {
+    return GetDexSrc1();
+  }
+};
+
+TEST_F(Dex2oatISAFeaturesRuntimeDetectionTest, TestCurrentRuntimeFeaturesAsDex2OatArguments) {
+  std::vector<std::string> argv;
+  Runtime::Current()->AddCurrentRuntimeFeaturesAsDex2OatArguments(&argv);
+  auto option_pos = std::find(std::begin(argv), std::end(argv),
+                              "--instruction-set-features=runtime");
+  if (InstructionSetFeatures::IsRuntimeDetectionSupported()) {
+    EXPECT_TRUE(kIsTargetBuild);
+    EXPECT_NE(option_pos, std::end(argv));
+  } else {
+    EXPECT_EQ(option_pos, std::end(argv));
+  }
+
+  RunTest();
 }
 
 }  // namespace art

@@ -364,4 +364,17 @@ Arm64InstructionSetFeatures::AddFeaturesFromSplitString(
                                       has_dotprod));
 }
 
+std::unique_ptr<const InstructionSetFeatures>
+Arm64InstructionSetFeatures::AddRuntimeDetectedFeatures(
+    const InstructionSetFeatures *features) const {
+  auto arm64_features = features->AsArm64InstructionSetFeatures();
+  return std::unique_ptr<const InstructionSetFeatures>(
+      new Arm64InstructionSetFeatures(fix_cortex_a53_835769_,
+                                      fix_cortex_a53_843419_,
+                                      arm64_features->has_crc_,
+                                      arm64_features->has_lse_,
+                                      arm64_features->has_fp16_,
+                                      arm64_features->has_dotprod_));
+}
+
 }  // namespace art
