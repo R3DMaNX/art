@@ -721,7 +721,7 @@ CompiledMethod* OptimizingCompiler::Emit(ArenaAllocator* allocator,
                           code_item_for_osr_check);
 
   CompiledMethod* compiled_method = CompiledMethod::SwapAllocCompiledMethod(
-      GetCompilerDriver(),
+      GetCompilerDriver()->GetCompiledMethodStorage(),
       codegen->GetInstructionSet(),
       code_allocator->GetMemory(),
       // Follow Quick's behavior and set the frame size to zero if it is
@@ -1157,7 +1157,7 @@ CompiledMethod* OptimizingCompiler::JniCompile(uint32_t access_flags,
       compiler_options, access_flags, method_idx, dex_file);
   MaybeRecordStat(compilation_stats_.get(), MethodCompilationStat::kCompiledNativeStub);
   return CompiledMethod::SwapAllocCompiledMethod(
-      GetCompilerDriver(),
+      GetCompilerDriver()->GetCompiledMethodStorage(),
       jni_compiled_method.GetInstructionSet(),
       jni_compiled_method.GetCode(),
       jni_compiled_method.GetFrameSize(),
