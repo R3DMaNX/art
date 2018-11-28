@@ -19,7 +19,7 @@
 
 #include "array.h"
 #include "base/bit_utils.h"
-#include "base/mutex.h"
+#include "base/locks.h"
 #include "dex/dex_file_types.h"
 #include "gc_root-inl.h"
 #include "object.h"

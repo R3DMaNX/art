@@ -21,6 +21,7 @@
 
 #include "art_field-inl.h"
 #include "art_method-inl.h"
+#include "base/mutex.h"
 #include "class_linker.h"
 #include "gc/heap-inl.h"
 #include "gc_root-inl.h"

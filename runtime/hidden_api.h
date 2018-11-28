@@ -19,7 +19,7 @@
 
 #include "art_field-inl.h"
 #include "art_method-inl.h"
-#include "base/mutex.h"
+#include "base/locks.h"
 #include "dex/hidden_api_access_flags.h"
 #include "mirror/class-inl.h"
 #include "reflection.h"
