@@ -299,7 +299,7 @@ void Thread::Park(bool is_absolute, int64_t time) {
     if (!is_absolute && time == 0) {
       // Thread.getState() is documented to return waiting for untimed parks.
       ScopedThreadSuspension sts(this, ThreadState::kWaiting);
-      DCHECK_EQ(NumberOfHeldMutexes(), 0);
+      DCHECK_EQ(NumberOfHeldMutexes(), 0u);
       result = futex(tls32_.park_state_.Address(),
                      FUTEX_WAIT_PRIVATE,
                      /* sleep if val = */ kNoPermitWaiterWaiting,
@@ -309,7 +309,7 @@ void Thread::Park(bool is_absolute, int64_t time) {
     } else {
       // Thread.getState() is documented to return timed wait for timed parks.
       ScopedThreadSuspension sts(this, ThreadState::kTimedWaiting);
-      DCHECK_EQ(NumberOfHeldMutexes(), 0);
+      DCHECK_EQ(NumberOfHeldMutexes(), 0u);
       timespec timespec;
       if (is_absolute) {
         // Time is millis when scheduled for an absolute time
