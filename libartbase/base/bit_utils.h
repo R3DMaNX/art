@@ -22,7 +22,6 @@
 
 #include <android-base/logging.h>
 
-#include "globals.h"
 #include "stl_util_identity.h"
 
 namespace art {
@@ -498,10 +497,6 @@ inline static constexpr T BitFieldExtract(T value, size_t lsb, size_t width) {
   }
   // Skip sign extension.
   return bitfield_unsigned;
-}
-
-inline static constexpr size_t BitsToBytesRoundUp(size_t num_bits) {
-  return RoundUp(num_bits, kBitsPerByte) / kBitsPerByte;
 }
 
 }  // namespace art
