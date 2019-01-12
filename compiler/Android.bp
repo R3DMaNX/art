@@ -220,12 +220,12 @@ art_cc_library {
             // VIXL assembly support for ARM targets.
             static: {
                 whole_static_libs: [
-                    "libvixl",
+                    "libvixl-arm",
                 ],
             },
             shared: {
                 shared_libs: [
-                    "libvixl",
+                    "libvixl-arm",
                 ],
             },
         },
@@ -233,12 +233,12 @@ art_cc_library {
             // VIXL assembly support for ARM64 targets.
             static: {
                 whole_static_libs: [
-                    "libvixl",
+                    "libvixl-arm64",
                 ],
             },
             shared: {
                 shared_libs: [
-                    "libvixl",
+                    "libvixl-arm64",
                 ],
             },
         },
@@ -269,12 +269,12 @@ art_cc_library {
             // VIXL assembly support for ARM targets.
             static: {
                 whole_static_libs: [
-                    "libvixld",
+                    "libvixld-arm",
                 ],
             },
             shared: {
                 shared_libs: [
-                    "libvixld",
+                    "libvixld-arm",
                 ],
             },
         },
@@ -282,12 +282,12 @@ art_cc_library {
             // VIXL assembly support for ARM64 targets.
             static: {
                 whole_static_libs: [
-                    "libvixld",
+                    "libvixld-arm64",
                 ],
             },
             shared: {
                 shared_libs: [
-                    "libvixld",
+                    "libvixld-arm64",
                 ],
             },
         },
@@ -415,7 +415,8 @@ art_cc_test {
         "libprofiled",
         "libartd-compiler",
         "libartd-simulator-container",
-        "libvixld",
+        "libvixld-arm",
+        "libvixld-arm64",
 
         "libbacktrace",
         "libnativeloader",
@@ -472,6 +473,7 @@ art_cc_test {
     },
     shared_libs: [
         "libartd-compiler",
-        "libvixld",
+        "libvixld-arm",
+        "libvixld-arm64",
     ],
 }

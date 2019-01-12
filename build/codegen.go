@@ -107,9 +107,8 @@ func codegen(ctx android.LoadHookContext, c *codegenProperties, library bool) {
 }
 
 type CodegenCommonArchProperties struct {
-	Srcs     []string
-	Cflags   []string
-	Cppflags []string
+	Srcs   []string
+	Cflags []string
 }
 
 type CodegenLibraryArchProperties struct {

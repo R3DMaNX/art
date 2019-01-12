@@ -41,7 +41,8 @@ art_cc_library {
     defaults: ["libart-disassembler-defaults"],
     shared_libs: [
         // For disassembler_arm*.
-        "libvixl",
+        "libvixl-arm",
+        "libvixl-arm64",
     ],
 }
 
@@ -53,6 +54,7 @@ art_cc_library {
     ],
     shared_libs: [
         // For disassembler_arm*.
-        "libvixld",
+        "libvixld-arm",
+        "libvixld-arm64",
     ],
 }

@@ -273,7 +273,8 @@ art_cc_binary {
         "libart-dexlayout",
         "libart",
         "libdexfile",
-        "libvixl",
+        "libvixl-arm",
+        "libvixl-arm64",
     ] + art_static_dependencies,
 }
 
@@ -305,7 +306,8 @@ art_cc_binary {
         "libartd",
         "libprofiled",
         "libdexfiled",
-        "libvixld",
+        "libvixld-arm",
+        "libvixld-arm64",
     ] + art_static_dependencies,
 }
 
